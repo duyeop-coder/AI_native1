@@ -38,7 +38,8 @@
 │   ├── {haiku,sonnet,opus}_C{1,2,3}.md   # 모델 비교 9건
 │   ├── hallucination/opus_H{1..7}.md     # 환각 검증 7건
 │   ├── v1/opus_v1_*.md                   # v1 프롬프트 대조군 3건
-│   └── multiturn/A01~A12.md              # 12턴 대화의 AI 응답 원문
+│   ├── multiturn/A01~A12.md              # 12턴 대화의 AI 응답 원문
+│   └── inputs/                           # 실험에 넣은 유저 프롬프트 원문 (C1~C3, H1~H7, V1_*, 다중 턴 근거)
 └── bonus/
     └── check_output.py               # 형식·근거 없는 금액/비율/조항 자동 점검
 ```
@@ -69,7 +70,12 @@
 LLM 답변이 ① 3단 구성 또는 [되묻기] 형식을 지켰는지 ② 근거 자료(규정 + 교육생 정보)에 없는 **조항 번호**를 근거로 썼는지 ③ 근거 자료에 없는 **금액·비율**을 만들었는지를 규칙으로 점검한다. 출석률처럼 근거 자료의 일수로 계산할 수 있는 비율은 허용한다. 담당자가 보기 전에 거르는 1차 필터다.
 
 ```bash
-python3 bonus/check_output.py <근거자료 파일> <답변.md> [<답변.md> ...]
+python3 bonus/check_output.py [--max-sentences N] <근거자료 파일> <답변.md> [<답변.md> ...]
+
+# 예: 모델 비교 C1 결과 3건 점검
+python3 bonus/check_output.py raw_outputs/inputs/C1.txt raw_outputs/*_C1.md
+# 예: 다중 턴 카카오톡 구간의 "3문장 이내" 조건 점검
+python3 bonus/check_output.py --max-sentences 3 raw_outputs/inputs/multiturn_source.txt raw_outputs/multiturn/A0{2,3,4,5,6,7}.md
 ```
 
 이 저장소의 실험 결과에 돌린 결과:
@@ -79,6 +85,8 @@ python3 bonus/check_output.py <근거자료 파일> <답변.md> [<답변.md> ...
 | 모델 비교 9건 (v2) | 9/9 OK |
 | 환각 검증 7건 (v2, Opus) | 7/7 OK |
 | v1 대조군 3건 | 3/3 WARN — 형식 누락 3건, H2에서 근거 없는 비율 `3.3%`, `8.8%`, `22%` 검출 |
+| 12턴 대화 답변 초안 9건 (근거 = 규정 + 사용자 턴) | 9/9 OK |
+| 12턴 대화 카카오톡 구간 6건 (`--max-sentences 3`) | Turn 4만 WARN — "답변 초안 4문장 (상한 3문장)". `04` 문서에서 사람이 찾은 문맥 유지 실패와 같은 지점 |
 
 한계: 규칙 기반이라 "문장으로 된 틀린 사실"(예: 없는 서류 이름)은 잡지 못한다. 그래서 사람의 최종 검토를 대체하지 않는다.
 

@@ -7,7 +7,9 @@ LLM이 만든 답변 초안이
 를 규칙 기반으로 1차 점검한다. 사람이 최종 판정하기 전의 필터 용도다.
 
 사용법:
-  python3 bonus/check_output.py <근거자료.txt|md> <답변.md> [<답변.md> ...]
+  python3 bonus/check_output.py [--max-sentences N] <근거자료.txt|md> <답변.md> [<답변.md> ...]
+
+  --max-sentences N : 답변 초안 문장 수 상한 (예: 카카오톡 "3문장 이내" 조건 점검)
 """
 import re
 import sys
@@ -17,6 +19,7 @@ SECTIONS = ["## 1. 답변 초안", "## 2. 근거 규정", "## 3. 확인 필요 �
 ARTICLE = re.compile(r"제\s*(\d+)\s*조")
 MONEY = re.compile(r"(\d[\d,]*)\s*(만\s*원|원)")
 PERCENT = re.compile(r"(\d+(?:\.\d+)?)\s*%")
+SENTENCE_END = re.compile(r"[.!?](?=\s|$)|:\)")
 
 
 def split_sections(text):
@@ -54,7 +57,11 @@ def computed_percents(source):
     return allowed
 
 
-def check(source, answer):
+def count_sentences(text):
+    return len(SENTENCE_END.findall(text.strip()))
+
+
+def check(source, answer, max_sentences=None):
     issues = []
     stripped = answer.strip()
     if stripped.startswith("[되묻기]"):
@@ -85,17 +92,27 @@ def check(source, answer):
         if float(p) not in allowed_pct:
             issues.append(f"근거 자료로 계산할 수 없는 비율: {p}%")
 
+    if max_sentences is not None:
+        n = count_sentences(draft)
+        if n > max_sentences:
+            issues.append(f"답변 초안 {n}문장 (상한 {max_sentences}문장)")
+
     return "3단 구성", issues
 
 
 def main():
-    if len(sys.argv) < 3:
+    args = sys.argv[1:]
+    max_sentences = None
+    if args[:1] == ["--max-sentences"] and len(args) > 1:
+        max_sentences = int(args[1])
+        args = args[2:]
+    if len(args) < 2:
         print(__doc__)
         sys.exit(1)
-    source = Path(sys.argv[1]).read_text(encoding="utf-8")
+    source = Path(args[0]).read_text(encoding="utf-8")
     bad = 0
-    for path in sys.argv[2:]:
-        kind, issues = check(source, Path(path).read_text(encoding="utf-8"))
+    for path in args[1:]:
+        kind, issues = check(source, Path(path).read_text(encoding="utf-8"), max_sentences)
         status = "OK  " if not issues else "WARN"
         bad += bool(issues)
         print(f"[{status}] {path} ({kind})")
